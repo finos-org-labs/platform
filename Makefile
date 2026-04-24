@@ -41,13 +41,13 @@ WINDOWS_BUILD_DIR := build/windows_amd64
 LINUX_ARTIFACT_DIR    := $(LINUX_BUILD_DIR)
 WINDOWS_ARTIFACT_DIR  := $(WINDOWS_BUILD_DIR)
 
-.PHONY: all default linux windows test bench clean verify help format
+.PHONY: all default linux windows go test bench clean verify help format
 .PHONY: qa qa-sanitizers qa-static
 .PHONY: sanitizer-asan sanitizer-usan sanitizer-tsan sanitizer-msan clang-tidy cppcheck
 
 default: linux
 
-all: linux windows
+all: linux windows go
 
 qa: qa-static qa-sanitizers
 	@echo "==> All QA checks completed"
@@ -72,6 +72,10 @@ windows:
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DCMAKE_TOOLCHAIN_FILE=$(TOOLCHAIN_DIR)/x86_64-w64-mingw32.cmake
 	@$(CMAKE) --build $(WINDOWS_BUILD_DIR) --parallel
+
+go:
+	@echo "==> Building Go module (verify compilation)"
+	@CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go build ./...
 
 test:
 	@echo "==> Running Go tests (source compilation mode)"
@@ -165,7 +169,8 @@ help:
 	@echo "  make           - build Linux native (default)"
 	@echo "  make linux     - build Linux native"
 	@echo "  make windows   - cross-compile Windows amd64"
-	@echo "  make all       - build Linux + Windows"
+	@echo "  make all       - build Linux + Windows + Go"
+	@echo "  make go        - build Go module"
 	@echo ""
 	@echo "Test Targets:"
 	@echo "  make test      - run Go tests"

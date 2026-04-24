@@ -7,11 +7,11 @@ package platform
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/include
-#cgo linux,amd64   LDFLAGS: -L${SRCDIR}/build/lib -lfinkit_platform_static -lm
-#cgo linux,arm64   LDFLAGS: -L${SRCDIR}/build/lib -lfinkit_platform_static -lm
-#cgo darwin,amd64  LDFLAGS: -L${SRCDIR}/build/lib -lfinkit_platform_static -lm
-#cgo darwin,arm64  LDFLAGS: -L${SRCDIR}/build/lib -lfinkit_platform_static -lm
-#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/build/lib -lfinkit_platform_static -lm
+#cgo linux,amd64   LDFLAGS: -L${SRCDIR}/build/linux_amd64 -lfinkit_platform_static -lm
+#cgo linux,arm64   LDFLAGS: -L${SRCDIR}/build/linux_arm64 -lfinkit_platform_static -lm
+#cgo darwin,amd64  LDFLAGS: -L${SRCDIR}/build/darwin_amd64 -lfinkit_platform_static -lm
+#cgo darwin,arm64  LDFLAGS: -L${SRCDIR}/build/darwin_arm64 -lfinkit_platform_static -lm
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/build/windows_amd64 -lfinkit_platform_static -lm
 
 #include "platform.h"
 #include "simd_detect.h"
