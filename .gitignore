@@ -10,7 +10,6 @@ build-*/
 install/
 
 # Go
-go.sum
 *.test
 *.out
 *.prof
@@ -28,12 +27,6 @@ Thumbs.db
 .directory
 
 # CMake
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-!CMakeLists.txt
-!cmake/*.cmake
 
 # Coverage
 *.gcda
@@ -45,4 +38,3 @@ coverage.out
 # prebuilt/
 
 # Test binaries
-platform.test
