@@ -4,8 +4,9 @@ project(finkit-platform VERSION 1.0.0 LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-# Compiler options
-add_compile_options(-Wall -Wextra -Wpedantic -ffp-contract=off)
+# Include SIMD detection and compiler flags
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/DetectSIMD.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/CompilerFlags.cmake)
 
 # Sanitizer configuration
 if(FC_ENABLE_SANITIZERS)
@@ -13,6 +14,22 @@ if(FC_ENABLE_SANITIZERS)
         include(${CMAKE_CURRENT_SOURCE_DIR}/.github/sanitizers.cmake)
     endif()
 endif()
+
+# Generate cgo_source.go with detected SIMD flags
+if(FC_SIMD_LEVEL STREQUAL "AVX512")
+    set(FC_SIMD_CFLAGS "${FC_AVX512_FLAGS}")
+elseif(FC_SIMD_LEVEL STREQUAL "AVX2")
+    set(FC_SIMD_CFLAGS "${FC_AVX2_FLAGS}")
+elseif(FC_SIMD_LEVEL STREQUAL "SSE42")
+    set(FC_SIMD_CFLAGS "${FC_SSE42_FLAGS}")
+else()
+    set(FC_SIMD_CFLAGS "")
+endif()
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cgo_source.go.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/cgo_source.go
+    @ONLY
+)
 
 # Platform-specific sources (selected by TARGET OS, not host OS)
 set(PLATFORM_SOURCES

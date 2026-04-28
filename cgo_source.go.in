@@ -7,7 +7,7 @@
 package platform
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/include -I${SRCDIR}/src -O2 -Wall -std=c11 -D_POSIX_C_SOURCE=200112L -mavx2 -mfma
+#cgo CFLAGS: -I${SRCDIR}/include -I${SRCDIR}/src -O2 -Wall -std=c11 -D_POSIX_C_SOURCE=200112L @FC_SIMD_CFLAGS@
 #cgo LDFLAGS: -lm
 
 #include "platform.h"
