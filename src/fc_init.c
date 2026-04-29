@@ -3,9 +3,9 @@
  * @brief Library initialization and version query implementation
  */
 
+#include "error.h"
 #include "platform.h"
 #include "simd_detect.h"
-#include "error.h"
 
 #include <stdatomic.h>
 

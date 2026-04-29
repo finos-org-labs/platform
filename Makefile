@@ -47,9 +47,9 @@ WINDOWS_ARTIFACT_DIR  := $(WINDOWS_BUILD_DIR)
 
 default: linux
 
-all: linux windows go
+all: format linux windows go
 
-qa: qa-static qa-sanitizers
+qa: format qa-static qa-sanitizers
 	@echo "==> All QA checks completed"
 
 qa-static: clang-tidy cppcheck
@@ -87,7 +87,11 @@ bench:
 
 format:
 	@echo "==> Formatting C code with clang-format"
-	@find src include -name '*.c' -o -name '*.h' | xargs clang-format -i
+	@if command -v clang-format >/dev/null 2>&1; then \
+		find src include \( -name '*.c' -o -name '*.h' \) -exec clang-format -i {} \; ; \
+	else \
+		echo "WARNING: clang-format not found, skipping format check"; \
+	fi
 
 verify:
 	@echo "=== Verify artifact formats ==="

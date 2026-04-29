@@ -8,16 +8,16 @@
 
 #include "simd_detect.h"
 #include "platform.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stddef.h>
 
 /* Global SIMD level variable (read-only after initialization, thread-safe) */
 fc_simd_level_t g_fc_simd_level = FC_SIMD_SCALAR;
 
 /*
  * Platform-specific CPUID detection implementation
-*/
+ */
 
 #if defined(FC_ARCH_X86) || defined(FC_ARCH_X86_64)
 
@@ -27,32 +27,26 @@ fc_simd_level_t g_fc_simd_level = FC_SIMD_SCALAR;
  * @brief Execute CPUID instruction
  */
 static inline void fc_cpuid(uint32_t eax, uint32_t ecx, uint32_t regs[4]) {
-#if FC_COMPILER_GCC || FC_COMPILER_CLANG
-    __asm__ volatile (
-        "cpuid"
-        : "=a"(regs[0]), "=b"(regs[1]), "=c"(regs[2]), "=d"(regs[3])
-        : "a"(eax), "c"(ecx)
-    );
-#else
+#    if FC_COMPILER_GCC || FC_COMPILER_CLANG
+    __asm__ volatile("cpuid"
+                     : "=a"(regs[0]), "=b"(regs[1]), "=c"(regs[2]), "=d"(regs[3])
+                     : "a"(eax), "c"(ecx));
+#    else
     regs[0] = regs[1] = regs[2] = regs[3] = 0;
-#endif
+#    endif
 }
 
 /**
  * @brief Execute XGETBV instruction
  */
 static inline uint64_t fc_xgetbv(uint32_t ecx) {
-#if FC_COMPILER_GCC || FC_COMPILER_CLANG
+#    if FC_COMPILER_GCC || FC_COMPILER_CLANG
     uint32_t eax, edx;
-    __asm__ volatile (
-        "xgetbv"
-        : "=a"(eax), "=d"(edx)
-        : "c"(ecx)
-    );
-    return ((uint64_t)edx << 32) | eax;
-#else
+    __asm__ volatile("xgetbv" : "=a"(eax), "=d"(edx) : "c"(ecx));
+    return ((uint64_t) edx << 32) | eax;
+#    else
     return 0;
-#endif
+#    endif
 }
 
 /**
@@ -65,42 +59,44 @@ static inline int fc_has_bit(uint32_t reg, int bit) {
 #elif defined(FC_ARCH_ARM) || defined(FC_ARCH_ARM64)
 
 /* ARM platform: detect NEON support */
-#if FC_OS_LINUX
-#include <sys/auxv.h>
-#include <asm/hwcap.h>
+#    if FC_OS_LINUX
+#        include <asm/hwcap.h>
+#        include <sys/auxv.h>
 
 static inline int fc_detect_arm_neon(void) {
     unsigned long hwcap = getauxval(AT_HWCAP);
-#ifdef HWCAP_ASIMD
-    if (hwcap & HWCAP_ASIMD) return 1;
-#endif
-#ifdef HWCAP_NEON
-    if (hwcap & HWCAP_NEON) return 1;
-#endif
+#        ifdef HWCAP_ASIMD
+    if (hwcap & HWCAP_ASIMD)
+        return 1;
+#        endif
+#        ifdef HWCAP_NEON
+    if (hwcap & HWCAP_NEON)
+        return 1;
+#        endif
     return 0;
 }
-#elif FC_OS_MACOS
+#    elif FC_OS_MACOS
 static inline int fc_detect_arm_neon(void) {
     return 1; /* Always on ARM64 macOS */
 }
-#else
+#    else
 static inline int fc_detect_arm_neon(void) {
     return 0;
 }
-#endif
+#    endif
 
 #endif /* FC_ARCH_* */
 
 /*
  * x86/x86_64 SIMD detection
-*/
+ */
 
 #if defined(FC_ARCH_X86) || defined(FC_ARCH_X86_64)
 
 static fc_simd_level_t fc_detect_simd_x86(void) {
-    uint32_t regs[4] = {0};
-    uint32_t max_leaf = 0;
-    uint32_t features_ecx = 0;
+    uint32_t regs[4]               = {0};
+    uint32_t max_leaf              = 0;
+    uint32_t features_ecx          = 0;
     uint32_t extended_features_ebx = 0;
 
     /* Get maximum supported leaf */
@@ -176,7 +172,7 @@ static fc_simd_level_t fc_detect_simd_generic(void) {
 
 /*
  * Public API implementation
-*/
+ */
 
 fc_simd_level_t fc_detect_simd(void) {
 #if defined(FC_ARCH_X86) || defined(FC_ARCH_X86_64)
@@ -195,23 +191,35 @@ fc_simd_level_t fc_get_simd_level(void) {
 
 const char* fc_simd_level_string(fc_simd_level_t level) {
     switch (level) {
-        case FC_SIMD_SCALAR: return "Scalar (no SIMD)";
-        case FC_SIMD_SSE42:  return "SSE4.2";
-        case FC_SIMD_AVX2:   return "AVX2";
-        case FC_SIMD_AVX512: return "AVX-512";
-        case FC_SIMD_NEON:   return "ARM NEON";
-        default:              return "Unknown";
+    case FC_SIMD_SCALAR:
+        return "Scalar (no SIMD)";
+    case FC_SIMD_SSE42:
+        return "SSE4.2";
+    case FC_SIMD_AVX2:
+        return "AVX2";
+    case FC_SIMD_AVX512:
+        return "AVX-512";
+    case FC_SIMD_NEON:
+        return "ARM NEON";
+    default:
+        return "Unknown";
     }
 }
 
 size_t fc_simd_parallelism(fc_simd_level_t level) {
     switch (level) {
-        case FC_SIMD_SCALAR: return 1;
-        case FC_SIMD_SSE42:  return 2;
-        case FC_SIMD_AVX2:   return 4;
-        case FC_SIMD_AVX512: return 8;
-        case FC_SIMD_NEON:   return 2;
-        default:              return 1;
+    case FC_SIMD_SCALAR:
+        return 1;
+    case FC_SIMD_SSE42:
+        return 2;
+    case FC_SIMD_AVX2:
+        return 4;
+    case FC_SIMD_AVX512:
+        return 8;
+    case FC_SIMD_NEON:
+        return 2;
+    default:
+        return 1;
     }
 }
 

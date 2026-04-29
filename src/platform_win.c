@@ -9,18 +9,18 @@
 
 #if defined(FC_OS_WINDOWS)
 
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
 
 /* Fallback defaults */
-#define FC_CACHE_LINE_DEFAULT 64
-#define FC_CACHE_L1_DEFAULT   (32  * 1024ULL)
-#define FC_CACHE_L2_DEFAULT   (256 * 1024ULL)
-#define FC_CACHE_L3_DEFAULT   (8   * 1024 * 1024ULL)
+#    define FC_CACHE_LINE_DEFAULT 64
+#    define FC_CACHE_L1_DEFAULT   (32 * 1024ULL)
+#    define FC_CACHE_L2_DEFAULT   (256 * 1024ULL)
+#    define FC_CACHE_L3_DEFAULT   (8 * 1024 * 1024ULL)
 
 /*
  * Cache size retrieval
-*/
+ */
 
 static size_t fc_get_cache_size_win(DWORD level) {
     DWORD bufferSize = 0;
@@ -30,20 +30,20 @@ static size_t fc_get_cache_size_win(DWORD level) {
     }
 
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION* buffer =
-        (SYSTEM_LOGICAL_PROCESSOR_INFORMATION*)malloc(bufferSize);
-    if (buffer == NULL) return 0;
+        (SYSTEM_LOGICAL_PROCESSOR_INFORMATION*) malloc(bufferSize);
+    if (buffer == NULL)
+        return 0;
 
     if (GetLogicalProcessorInformation(buffer, &bufferSize) == FALSE) {
         free(buffer);
         return 0;
     }
 
-    DWORD count = bufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+    DWORD count  = bufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
     size_t total = 0;
 
     for (DWORD i = 0; i < count; i++) {
-        if (buffer[i].Relationship == RelationCache &&
-            buffer[i].Cache.Level == level &&
+        if (buffer[i].Relationship == RelationCache && buffer[i].Cache.Level == level &&
             buffer[i].Cache.Type == CacheData) {
             total += buffer[i].Cache.Size;
         }
@@ -61,8 +61,9 @@ size_t fc_get_cache_line_size(void) {
     }
 
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION* buffer =
-        (SYSTEM_LOGICAL_PROCESSOR_INFORMATION*)malloc(bufferSize);
-    if (buffer == NULL) return FC_CACHE_LINE_DEFAULT;
+        (SYSTEM_LOGICAL_PROCESSOR_INFORMATION*) malloc(bufferSize);
+    if (buffer == NULL)
+        return FC_CACHE_LINE_DEFAULT;
 
     if (GetLogicalProcessorInformation(buffer, &bufferSize) == FALSE) {
         free(buffer);
@@ -100,9 +101,17 @@ size_t fc_get_l3_cache_size(void) {
 #else
 
 /* Non-Windows fallback (should not be linked, but provides compilation safety) */
-size_t fc_get_cache_line_size(void) { return FC_CACHE_LINE_DEFAULT; }
-size_t fc_get_l1_cache_size(void)    { return FC_CACHE_L1_DEFAULT; }
-size_t fc_get_l2_cache_size(void)    { return FC_CACHE_L2_DEFAULT; }
-size_t fc_get_l3_cache_size(void)    { return FC_CACHE_L3_DEFAULT; }
+size_t fc_get_cache_line_size(void) {
+    return FC_CACHE_LINE_DEFAULT;
+}
+size_t fc_get_l1_cache_size(void) {
+    return FC_CACHE_L1_DEFAULT;
+}
+size_t fc_get_l2_cache_size(void) {
+    return FC_CACHE_L2_DEFAULT;
+}
+size_t fc_get_l3_cache_size(void) {
+    return FC_CACHE_L3_DEFAULT;
+}
 
 #endif /* FC_OS_WINDOWS */
