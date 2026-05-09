@@ -1,3 +1,3 @@
-module github.com/finos-org-labs/platform
+module github.com/finosorg-labs/platform
 
 go 1.26.1

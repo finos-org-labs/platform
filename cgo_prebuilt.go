@@ -2,7 +2,7 @@
 
 // Prebuilt mode: link against prebuilt static library.
 // Usage: go build -tags lib
-// Requires: prebuilt libfinkit_platform_static.a in build/lib/
+// Requires: prebuilt libfinkit_platform_static.a in build/linux_amd64/
 package platform
 
 /*
