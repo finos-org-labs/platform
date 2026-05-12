@@ -47,7 +47,9 @@ WINDOWS_ARTIFACT_DIR  := $(WINDOWS_BUILD_DIR)
 
 default: linux
 
-all: format linux windows go
+all: format linux go
+# TODO: Re-enable Windows build after building Windows-compatible GMP/MPFR libraries
+# all: format linux windows go
 
 qa: format qa-static qa-sanitizers
 	@echo "==> All QA checks completed"
@@ -74,16 +76,42 @@ windows:
 	@$(CMAKE) --build $(WINDOWS_BUILD_DIR) --parallel
 
 go:
-	@echo "==> Building Go module (verify compilation)"
+	@echo "==> Building Go module with source (verify compilation)"
 	@CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go build ./...
+	@echo "==> Building Go module with lib (verify compilation)"
+	@CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go build -tags lib ./...
 
 test:
-	@echo "==> Running Go tests (source compilation mode)"
-	@FC_BUILD_MODE=source CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go test -v .
+	@echo "==> Building tests with coverage (Debug mode)"
+	@$(CMAKE) -B $(LINUX_BUILD_DIR) \
+		-G Ninja \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DBUILD_TESTING=ON \
+		-DCMAKE_C_FLAGS="-fprofile-arcs -ftest-coverage -O0"
+	@$(CMAKE) --build $(LINUX_BUILD_DIR) --parallel
+	@echo "==> Running C tests with coverage"
+	@bash scripts/test_coverage.sh $(LINUX_BUILD_DIR)
+	@echo ""
+	@echo "==> Running Go tests"
+	@FC_BUILD_MODE=source CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go test ./... -v
 
 bench:
-	@echo "==> Running Go benchmarks (source compilation mode)"
-	@FC_BUILD_MODE=source CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go test -bench=. -benchmem .
+	@echo "==> Building benchmarks (Release mode)"
+	@BUILD_TYPE=Release $(CMAKE) -B $(LINUX_BUILD_DIR) \
+		-G Ninja \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DFC_BUILD_TESTS=OFF \
+		-DFC_BUILD_BENCHMARKS=ON >/dev/null 2>&1 || true
+	@$(CMAKE) --build $(LINUX_BUILD_DIR) --parallel
+	@echo "==> Running C benchmarks"
+	@if [ -f $(LINUX_BUILD_DIR)/benchmarks/matrix_benchmarks ]; then \
+		$(LINUX_BUILD_DIR)/benchmarks/matrix_benchmarks; \
+	else \
+		echo "No C benchmarks found"; \
+	fi
+	@echo ""
+	@echo "==> Running Go benchmarks"
+	@FC_BUILD_MODE=source CGO_CFLAGS_ALLOW="-m(avx2|avx512f|avx512dq|fma|sse4\.2)" go test -bench=. -benchmem ./...
 
 format:
 	@echo "==> Formatting C code with clang-format"

@@ -25,15 +25,22 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 )
+
+// alignedAlloc wraps C pointer with atomic freed flag
+type alignedAlloc struct {
+	ptr   unsafe.Pointer
+	freed uint32
+}
 
 // Track allocated pointers to prevent double-free
 var allocTracker = struct {
 	sync.Mutex
-	ptrs map[uintptr]bool
+	ptrs map[uintptr]*alignedAlloc
 }{
-	ptrs: make(map[uintptr]bool),
+	ptrs: make(map[uintptr]*alignedAlloc),
 }
 
 // Config holds library configuration options
@@ -200,29 +207,25 @@ func AlignedAlloc(size int, alignment int) ([]byte, error) {
 		return nil, fmt.Errorf("allocation failed")
 	}
 
-	// Track this allocation
+	// Track this allocation with atomic freed flag
 	ptrVal := uintptr(ptr)
+	alloc := &alignedAlloc{ptr: ptr, freed: 0}
 	allocTracker.Lock()
-	allocTracker.ptrs[ptrVal] = true
+	allocTracker.ptrs[ptrVal] = alloc
 	allocTracker.Unlock()
 
 	// Create a Go slice backed by C memory
 	data := (*[1 << 30]byte)(ptr)[:size:size]
 
-	// Set finalizer to free memory when slice is garbage collected
-	runtime.SetFinalizer(&data, func(d *[]byte) {
-		if len(*d) > 0 {
-			p := unsafe.Pointer(&(*d)[0])
-			pv := uintptr(p)
-
+	// Use AddCleanup to free memory when slice is garbage collected
+	runtime.AddCleanup(&data, func(freedPtr *uint32) {
+		if atomic.CompareAndSwapUint32(freedPtr, 0, 1) {
+			C.fc_aligned_free(ptr)
 			allocTracker.Lock()
-			if allocTracker.ptrs[pv] {
-				C.fc_aligned_free(p)
-				delete(allocTracker.ptrs, pv)
-			}
+			delete(allocTracker.ptrs, ptrVal)
 			allocTracker.Unlock()
 		}
-	})
+	}, &alloc.freed)
 
 	return data, nil
 }
@@ -239,10 +242,11 @@ func AlignedFree(data []byte) {
 	allocTracker.Lock()
 	defer allocTracker.Unlock()
 
-	if allocTracker.ptrs[pv] {
-		runtime.SetFinalizer(&data, nil)
-		C.fc_aligned_free(p)
-		delete(allocTracker.ptrs, pv)
+	if alloc, exists := allocTracker.ptrs[pv]; exists {
+		if atomic.CompareAndSwapUint32(&alloc.freed, 0, 1) {
+			C.fc_aligned_free(p)
+			delete(allocTracker.ptrs, pv)
+		}
 	}
 }
 

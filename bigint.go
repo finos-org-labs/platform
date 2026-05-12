@@ -9,11 +9,13 @@ import "C"
 import (
 	"fmt"
 	"runtime"
+	"sync/atomic"
 	"unsafe"
 )
 
 type BigInt struct {
-	ptr *C.fc_bigint_t
+	ptr   *C.fc_bigint_t
+	freed uint32 // 0=not freed, 1=freed (atomic flag to prevent double-free)
 }
 
 func (b *BigInt) ensure() error {
@@ -30,8 +32,13 @@ func NewBigInt() (*BigInt, error) {
 		return nil, status.Error()
 	}
 
-	v := &BigInt{ptr: ptr}
-	runtime.SetFinalizer(v, func(b *BigInt) { b.Destroy() })
+	v := &BigInt{ptr: ptr, freed: 0}
+	// AddCleanup: cleanup function receives the freed flag pointer
+	runtime.AddCleanup(v, func(freedPtr *uint32) {
+		if atomic.CompareAndSwapUint32(freedPtr, 0, 1) {
+			C.fc_bigint_destroy(ptr)
+		}
+	}, &v.freed)
 	return v, nil
 }
 
@@ -51,8 +58,11 @@ func (b *BigInt) Destroy() {
 	if b == nil || b.ptr == nil {
 		return
 	}
-	C.fc_bigint_destroy(b.ptr)
-	b.ptr = nil
+
+	if atomic.CompareAndSwapUint32(&b.freed, 0, 1) {
+		C.fc_bigint_destroy(b.ptr)
+		b.ptr = nil
+	}
 }
 
 func (b *BigInt) SetInt64(input int64) error {
@@ -180,6 +190,26 @@ func (b *BigInt) Mod(lhs, rhs *BigInt) error {
 		return err
 	}
 	return Status(C.fc_bigint_mod(b.ptr, lhs.ptr, rhs.ptr)).Error()
+}
+
+func (b *BigInt) Neg(input *BigInt) error {
+	if err := b.ensure(); err != nil {
+		return err
+	}
+	if err := input.ensure(); err != nil {
+		return err
+	}
+	return Status(C.fc_bigint_neg(b.ptr, input.ptr)).Error()
+}
+
+func (b *BigInt) Abs(input *BigInt) error {
+	if err := b.ensure(); err != nil {
+		return err
+	}
+	if err := input.ensure(); err != nil {
+		return err
+	}
+	return Status(C.fc_bigint_abs(b.ptr, input.ptr)).Error()
 }
 
 func (b *BigInt) Cmp(other *BigInt) (int, error) {

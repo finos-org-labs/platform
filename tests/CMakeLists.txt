@@ -7,6 +7,9 @@ add_executable(platform_tests
     test_framework.c
     test_main.c
     test_platform.c
+    test_bigint.c
+    test_bigfloat.c
+    test_precision.c
 )
 
 # Link with platform library

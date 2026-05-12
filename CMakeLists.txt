@@ -129,7 +129,7 @@ install(FILES
 option(BUILD_TESTING "Build tests" ON)
 if(BUILD_TESTING AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/tests)
     enable_testing()
-    # add_subdirectory(tests)
+    add_subdirectory(tests)
 endif()
 
 # Print configuration

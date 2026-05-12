@@ -326,6 +326,30 @@ fc_bigint_mod(fc_bigint_t* result, const fc_bigint_t* lhs, const fc_bigint_t* rh
     return FC_OK;
 }
 
+FC_API fc_status_t fc_bigint_neg(fc_bigint_t* result, const fc_bigint_t* input) {
+    fc_status_t status = fc_bigint_require_ready(result);
+    if (status != FC_OK) {
+        return status;
+    }
+    if ((status = fc_bigint_require_ready(input)) != FC_OK) {
+        return status;
+    }
+    mpz_neg(((fc_bigint_impl_t*) result)->value, ((const fc_bigint_impl_t*) input)->value);
+    return FC_OK;
+}
+
+FC_API fc_status_t fc_bigint_abs(fc_bigint_t* result, const fc_bigint_t* input) {
+    fc_status_t status = fc_bigint_require_ready(result);
+    if (status != FC_OK) {
+        return status;
+    }
+    if ((status = fc_bigint_require_ready(input)) != FC_OK) {
+        return status;
+    }
+    mpz_abs(((fc_bigint_impl_t*) result)->value, ((const fc_bigint_impl_t*) input)->value);
+    return FC_OK;
+}
+
 FC_API fc_status_t fc_bigint_cmp(const fc_bigint_t* lhs, const fc_bigint_t* rhs, int* cmp_out) {
     fc_status_t status = fc_bigint_require_ready(lhs);
     if (status != FC_OK) {

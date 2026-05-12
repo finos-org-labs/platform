@@ -9,11 +9,13 @@ import "C"
 import (
     "fmt"
     "runtime"
+    "sync/atomic"
     "unsafe"
 )
 
 type BigFloat struct {
-    ptr *C.fc_bigfloat_t
+    ptr   *C.fc_bigfloat_t
+    freed uint32 // 0=not freed, 1=freed (atomic flag to prevent double-free)
 }
 
 func (b *BigFloat) ensure() error {
@@ -29,8 +31,14 @@ func NewBigFloat() (*BigFloat, error) {
     if status != StatusOK {
         return nil, status.Error()
     }
-    v := &BigFloat{ptr: ptr}
-    runtime.SetFinalizer(v, func(b *BigFloat) { b.Destroy() })
+
+    v := &BigFloat{ptr: ptr, freed: 0}
+    // AddCleanup: cleanup function receives the freed flag pointer
+    runtime.AddCleanup(v, func(freedPtr *uint32) {
+        if atomic.CompareAndSwapUint32(freedPtr, 0, 1) {
+            C.fc_bigfloat_destroy(ptr)
+        }
+    }, &v.freed)
     return v, nil
 }
 
@@ -40,8 +48,14 @@ func NewBigFloatWithPrec(bits uint64) (*BigFloat, error) {
     if status != StatusOK {
         return nil, status.Error()
     }
-    v := &BigFloat{ptr: ptr}
-    runtime.SetFinalizer(v, func(b *BigFloat) { b.Destroy() })
+
+    v := &BigFloat{ptr: ptr, freed: 0}
+    // AddCleanup: cleanup function receives the freed flag pointer
+    runtime.AddCleanup(v, func(freedPtr *uint32) {
+        if atomic.CompareAndSwapUint32(freedPtr, 0, 1) {
+            C.fc_bigfloat_destroy(ptr)
+        }
+    }, &v.freed)
     return v, nil
 }
 
@@ -61,8 +75,11 @@ func (b *BigFloat) Destroy() {
     if b == nil || b.ptr == nil {
         return
     }
-    C.fc_bigfloat_destroy(b.ptr)
-    b.ptr = nil
+
+    if atomic.CompareAndSwapUint32(&b.freed, 0, 1) {
+        C.fc_bigfloat_destroy(b.ptr)
+        b.ptr = nil
+    }
 }
 
 func (b *BigFloat) SetFloat64(input float64) error {
